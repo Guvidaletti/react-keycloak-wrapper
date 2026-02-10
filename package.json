@@ -1,6 +1,6 @@
 {
   "name": "react-keycloak-wrapper",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "React Keycloak provider inspired by OIDC providers",
   "license": "MIT",
   "main": "./dist/index.cjs",
