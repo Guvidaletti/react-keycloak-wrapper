@@ -1,181 +1,218 @@
+import Keycloak, { KeycloakError } from "keycloak-js";
 import React, {
   FC,
   ReactNode,
   useCallback,
-  useEffect,
+  useLayoutEffect,
   useReducer,
-  useRef,
 } from "react";
-import Keycloak from "keycloak-js";
-import { KeycloakContext } from "./keycloak-context";
 import { KeycloakConfig } from "../types";
-import { keycloakReducer, initialKeycloakState } from "./keycloak-reducer";
+import { KeycloakContext } from "./keycloak-context";
+import {
+  initialKeycloakContextValue,
+  keycloakReducer,
+} from "./keycloak-reducer";
+import Logger from "../components/Logger";
 
 interface Props {
+  logging?: boolean;
   children: ReactNode;
   config: KeycloakConfig;
-  configurationName?: string;
+  // configurationName?: string;
   LoadingComponent?: FC<{ opened: boolean }>;
-  AuthenticatingErrorComponent?: FC<{ error: Error | null; retry: () => void }>;
+  AuthenticatingErrorComponent?: FC<{
+    error: Error | KeycloakError | null;
+    retry: () => void;
+  }>;
   SessionLostComponent?: FC<{ retry: () => void }>;
 }
 
+let keycloak: Keycloak | undefined;
+const logger = new Logger(false);
 export const KeycloakProvider: React.FC<Props> = ({
+  logging,
   children,
   config,
-  configurationName = "default",
   LoadingComponent,
   AuthenticatingErrorComponent,
   SessionLostComponent,
 }) => {
-  const [store, dispatch] = useReducer(keycloakReducer, initialKeycloakState);
-  const loadingRef = useRef<string[]>([]);
+  logger.setEnabled(logging ?? false);
 
-  const handleRetryError = () => {
-    dispatch({
-      type: "SET_ERROR",
-      payload: {
-        configurationName,
-        error: null,
-      },
-    });
-  };
+  const [state, dispatch] = useReducer(
+    keycloakReducer,
+    initialKeycloakContextValue,
+  );
 
-  const handleRetrySessionLost = () => {
-    dispatch({
-      type: "SET_SESSION_LOST",
-      payload: {
-        configurationName,
-        sessionLost: false,
-      },
-    });
-  };
-
-  const initKeycloak = useCallback(async () => {
-    const keycloak = new Keycloak({
-      url: config.url,
-      realm: config.realm,
-      clientId: config.clientId,
-    });
-
-    if (loadingRef.current.includes(configurationName)) {
-      return;
+  const initiateKeycloak = useCallback(() => {
+    if (!keycloak) {
+      keycloak = new Keycloak({
+        url: config.url,
+        realm: config.realm,
+        clientId: config.clientId,
+      });
     }
 
-    try {
-      loadingRef.current.push(configurationName);
-      const isAuthenticated = await keycloak.init({
-        onLoad: "check-sso",
-        checkLoginIframe: false,
-      });
-
-      const profile = isAuthenticated ? await keycloak.loadUserProfile() : null;
-
-      // 🔁 AUTO REFRESH
-      if (isAuthenticated) {
-        const interval = config.tokenRefreshInterval ?? 10000;
-
-        setInterval(() => {
-          keycloak.updateToken(30).catch(() =>
-            keycloak.login({
-              redirectUri: config.redirectUri,
-            }),
-          );
-        }, interval);
-
-        keycloak.onTokenExpired = () => {
-          keycloak.updateToken(30);
-        };
-      }
-
-      // ⚠️ Handler de sessão perdida
-      keycloak.onAuthLogout = () => {
-        dispatch({
-          type: "SET_SESSION_LOST",
-          payload: {
-            configurationName,
-            sessionLost: true,
-          },
+    if (keycloak && !keycloak.didInitialize) {
+      keycloak
+        .init({
+          onLoad: "check-sso",
+          checkLoginIframe: false,
+        })
+        .then(() => {
+          dispatch({
+            type: "SET_LOADING",
+            payload: false,
+          });
         });
-      };
+    }
+
+    keycloak.onReady = (authenticated) => {
+      logger.log("Keycloak is ready", { authenticated });
+
+      if (authenticated) {
+        dispatch({
+          type: "SET_LOADING",
+          payload: false,
+        });
+      }
+    };
+
+    keycloak.onAuthSuccess = () => {
+      logger.log("Authentication successful");
 
       dispatch({
-        type: "SET_KEYCLOAK",
+        type: "SET_TOKEN",
         payload: {
-          configurationName,
-          value: {
-            keycloak,
-            loading: false,
-            isAuthenticated: isAuthenticated,
-            profile,
-            accessToken: keycloak.token,
-            idToken: keycloak.idToken,
-            error: null,
-            sessionLost: false,
-
-            login: (redirectUri?: string) =>
-              keycloak.login({
-                redirectUri: redirectUri ?? config.redirectUri,
-              }),
-
-            logout: (redirectUri?: string) =>
-              keycloak.logout({
-                redirectUri: redirectUri ?? config.redirectUri,
-              }),
-          },
+          isAuthenticated: true,
+          accessToken: keycloak?.token,
+          idToken: keycloak?.idToken,
         },
       });
 
-      if (
-        isAuthenticated &&
-        config.redirectUri &&
-        window.location.href.startsWith(config.redirectUri)
-      ) {
-        const returnUrl = sessionStorage.getItem("keycloak_return_url") || "/";
-        // Redireciona para a URL original
-        window.location.replace(returnUrl);
-        sessionStorage.removeItem("keycloak_return_url");
-      }
+      keycloak?.loadUserInfo().then((userInfo) => {
+        dispatch({
+          type: "SET_USER_INFO",
+          payload: userInfo,
+        });
+      });
 
-      loadingRef.current = loadingRef.current.filter(
-        (name) => name !== configurationName,
-      );
-    } catch (err) {
+      setInterval(() => {
+        keycloak?.updateToken(20);
+      }, config.tokenRefreshInterval ?? 10000);
+    };
+
+    keycloak.onAuthLogout = () => {
+      logger.log("Session lost");
+      dispatch({
+        type: "SET_SESSION_LOST",
+        payload: true,
+      });
+    };
+
+    keycloak.onAuthError = (error) => {
+      logger.log("Authentication error", { error });
+
       dispatch({
         type: "SET_ERROR",
+        payload: error || null,
+      });
+    };
+
+    keycloak.onAuthRefreshSuccess = () => {
+      logger.log("Token refresh successful", keycloak?.token);
+
+      dispatch({
+        type: "SET_TOKEN",
         payload: {
-          configurationName,
-          error: err instanceof Error ? err : new Error(String(err)),
+          isAuthenticated: true,
+          accessToken: keycloak?.token,
+          idToken: keycloak?.idToken,
         },
       });
-    }
-  }, []);
+    };
+  }, [config.clientId, config.realm, config.tokenRefreshInterval, config.url]);
 
-  useEffect(() => {
-    initKeycloak();
-  }, []);
+  useLayoutEffect(() => {
+    initiateKeycloak();
+  }, [initiateKeycloak]);
+
+  useLayoutEffect(() => {
+    logger.log("Checando redirecionamento após autenticação", {
+      isAuthenticated: state.isAuthenticated,
+      isLoading: state.isLoading,
+      redirectUri: config.redirectUri,
+    });
+
+    if (
+      !state.isLoading &&
+      state.isAuthenticated &&
+      config.redirectUri &&
+      window.location.href.startsWith(config.redirectUri)
+    ) {
+      const returnUrl = sessionStorage.getItem("keycloak_return_url") || "/";
+      if (!window.location.href.endsWith(returnUrl)) {
+        logger.log("Redirecionando para a URL original após autenticação", {
+          returnUrl,
+          origin: window.location.origin,
+        });
+
+        // Redireciona para a URL original
+        window.history.replaceState(
+          { keycloak_redirected: true },
+          "",
+          window.location.origin + returnUrl,
+        );
+        window.dispatchEvent(new PopStateEvent("popstate"));
+        sessionStorage.removeItem("keycloak_return_url");
+      }
+    }
+  }, [config.redirectUri, state.isAuthenticated, state.isLoading]);
+
+  const handleLogin = useCallback(
+    (redirectUri?: string) =>
+      keycloak?.login({
+        redirectUri: redirectUri ?? config.redirectUri,
+      }) ?? Promise.reject(),
+    [config.redirectUri],
+  );
+
+  const handleLogout = useCallback(
+    (redirectUri: string) =>
+      keycloak?.logout({
+        redirectUri: redirectUri,
+      }) ?? Promise.reject(),
+    [],
+  );
 
   const shouldRenderChildren =
-    !loadingRef.current.includes(configurationName) &&
-    !store[configurationName]?.loading &&
-    !store[configurationName]?.error &&
-    !store[configurationName]?.sessionLost &&
-    !!store[configurationName]?.keycloak;
+    !state.isLoading && !state.error && !state.sessionLost;
 
   return (
-    <KeycloakContext.Provider value={store}>
+    <KeycloakContext.Provider
+      value={{
+        ...state,
+        login: handleLogin,
+        logout: handleLogout,
+      }}
+    >
       {shouldRenderChildren && children}
-      {LoadingComponent && (
-        <LoadingComponent opened={store[configurationName]?.loading} />
-      )}
-      {AuthenticatingErrorComponent && store[configurationName]?.error && (
+
+      {LoadingComponent && <LoadingComponent opened={state?.isLoading} />}
+      {AuthenticatingErrorComponent && state?.error && (
         <AuthenticatingErrorComponent
-          error={store[configurationName]?.error}
-          retry={handleRetryError}
+          error={state?.error}
+          retry={() => {
+            console.log("TODO: Implement retry logic");
+          }}
         />
       )}
-      {SessionLostComponent && store[configurationName]?.sessionLost && (
-        <SessionLostComponent retry={handleRetrySessionLost} />
+      {SessionLostComponent && state?.sessionLost && (
+        <SessionLostComponent
+          retry={() => {
+            console.log("TODO: Implement retry logic");
+          }}
+        />
       )}
     </KeycloakContext.Provider>
   );

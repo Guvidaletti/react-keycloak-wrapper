@@ -1,4 +1,4 @@
-import Keycloak from "keycloak-js";
+import { KeycloakError, KeycloakUserInfo } from "keycloak-js";
 
 export interface KeycloakConfig {
   url: string;
@@ -9,15 +9,14 @@ export interface KeycloakConfig {
 }
 
 export interface KeycloakContextValue {
-  keycloak: Keycloak;
-  loading: boolean;
+  isLoading: boolean;
   isAuthenticated: boolean;
-  profile: Keycloak.KeycloakProfile | null;
+  userInfo: KeycloakUserInfo | null;
   accessToken?: string;
   idToken?: string;
-  error: Error | null;
+  error: Error | KeycloakError | null;
   sessionLost: boolean;
 
   login: (redirectUri?: string) => Promise<void>;
-  logout: (redirectUri?: string) => Promise<void>;
+  logout: (redirectUri: string) => Promise<void>;
 }

@@ -1,53 +1,62 @@
-import { KeycloakContextValue } from '../types';
+import { KeycloakError, KeycloakUserInfo } from "keycloak-js";
+import { KeycloakContextValue } from "../types";
 
-export type KeycloakState = Record<string, KeycloakContextValue>;
+type GenericAction<T extends string, P = undefined> = { type: T; payload: P };
 
-export type KeycloakAction = 
-  | { type: 'SET_KEYCLOAK'; payload: { configurationName: string; value: KeycloakContextValue } }
-  | { type: 'UPDATE_KEYCLOAK'; payload: { configurationName: string; value: Partial<KeycloakContextValue> } }
-  | { type: 'SET_ERROR'; payload: { configurationName: string; error: Error | null } }
-  | { type: 'SET_SESSION_LOST'; payload: { configurationName: string; sessionLost: boolean } };
+export type KeycloakAction =
+  | GenericAction<
+      "SET_TOKEN",
+      { accessToken?: string; idToken?: string; isAuthenticated?: boolean }
+    >
+  | GenericAction<"SET_LOADING", boolean>
+  | GenericAction<"SET_ERROR", Error | KeycloakError | null>
+  | GenericAction<"SET_SESSION_LOST", boolean>
+  | GenericAction<"SET_USER_INFO", KeycloakUserInfo | null>;
 
-export const initialKeycloakState: KeycloakState = {};
+export const initialKeycloakContextValue: KeycloakContextValue = {
+  error: null,
+  isAuthenticated: false,
+  isLoading: true,
+  sessionLost: false,
+  login: () => Promise.reject(new Error("Not implemented")),
+  logout: () => Promise.reject(new Error("Not implemented")),
+  userInfo: null,
+};
 
 export function keycloakReducer(
-  state: KeycloakState,
-  action: KeycloakAction
-): KeycloakState {
+  state: KeycloakContextValue,
+  action: KeycloakAction,
+): KeycloakContextValue {
   switch (action.type) {
-    case 'SET_KEYCLOAK':
+    case "SET_TOKEN":
       return {
         ...state,
-        [action.payload.configurationName]: action.payload.value,
+        accessToken: action.payload.accessToken,
+        idToken: action.payload.idToken,
+        isAuthenticated:
+          action.payload.isAuthenticated ?? state.isAuthenticated,
       };
-    
-    case 'UPDATE_KEYCLOAK':
+    case "SET_LOADING":
       return {
         ...state,
-        [action.payload.configurationName]: {
-          ...state[action.payload.configurationName],
-          ...action.payload.value,
-        },
+        isLoading: action.payload,
       };
-    
-    case 'SET_ERROR':
+    case "SET_ERROR":
       return {
         ...state,
-        [action.payload.configurationName]: {
-          ...state[action.payload.configurationName],
-          error: action.payload.error,
-        },
+        error: action.payload,
       };
-    
-    case 'SET_SESSION_LOST':
+    case "SET_SESSION_LOST":
       return {
         ...state,
-        [action.payload.configurationName]: {
-          ...state[action.payload.configurationName],
-          sessionLost: action.payload.sessionLost,
-        },
+        sessionLost: action.payload,
       };
-    
+    case "SET_USER_INFO":
+      return {
+        ...state,
+        userInfo: action.payload,
+      };
+
     default:
       return state;
   }

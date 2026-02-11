@@ -4,9 +4,9 @@ import { useKeycloak } from "../hooks/useKeycloak";
 export const KeycloakSecure: React.FC<React.PropsWithChildren> = ({
   children,
 }) => {
-  const { isAuthenticated, login, loading } = useKeycloak();
+  const { isAuthenticated, login, isLoading } = useKeycloak();
 
-  if (loading) return null;
+  if (isLoading) return null;
 
   if (!isAuthenticated) {
     // Salva a URL atual antes de redirecionar

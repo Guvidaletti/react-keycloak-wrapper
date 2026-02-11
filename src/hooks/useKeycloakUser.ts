@@ -1,11 +1,12 @@
 import { useContext } from "react";
 import { KeycloakContext } from "../provider/keycloak-context";
+import { KeycloakUserInfo } from "keycloak-js";
 
-export function useKeycloakUser(name = "default") {
-  const ctx = useContext(KeycloakContext)[name];
+export function useKeycloakUser<UserInfo = KeycloakUserInfo>() {
+  const ctx = useContext(KeycloakContext);
 
   return {
-    user: ctx?.profile,
-    loading: ctx?.loading,
+    user: ctx?.userInfo as UserInfo | null,
+    loading: ctx?.isLoading,
   };
 }
