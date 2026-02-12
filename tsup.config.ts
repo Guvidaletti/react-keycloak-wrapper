@@ -6,5 +6,5 @@ export default defineConfig({
   dts: true,
   sourcemap: true,
   clean: true,
-  external: ["react", "keycloak-js"],
+  external: ["react", "react-dom", "keycloak-js"],
 });
