@@ -14,20 +14,22 @@ Antes de instalar, certifique-se de ter as seguintes dependências peer instalad
 
 ## 📦 Instalação
 
+Supondo que você já tenha um projeto _React_ configurado, pelo menos com `React` e `ReactDOM`, você pode instalar o `react-keycloak-wrapper` e o `keycloak-js` usando npm:
+
 ```bash
-npm install react-keycloak-wrapper keycloak-js react react-dom
+npm install react-keycloak-wrapper keycloak-js
 ```
 
 ou com pnpm:
 
 ```bash
-pnpm add react-keycloak-wrapper keycloak-js react react-dom
+pnpm add react-keycloak-wrapper keycloak-js
 ```
 
 ou com yarn:
 
 ```bash
-yarn add react-keycloak-wrapper keycloak-js react react-dom
+yarn add react-keycloak-wrapper keycloak-js
 ```
 
 ## 🚀 Uso Básico
@@ -61,14 +63,14 @@ Provedor principal que gerencia o estado de autenticação do Keycloak.
 
 **Props:**
 
-| Prop                           | Tipo                                              | Obrigatório | Padrão      | Descrição                                         |
-| ------------------------------ | ------------------------------------------------- | ----------- | ----------- | ------------------------------------------------- |
-| `children`                     | `ReactNode`                                       | ✅          | -           | Componentes filhos                                |
-| `config`                       | `KeycloakConfig`                                  | ✅          | -           | Configurações do Keycloak                         |
-| `configurationName`            | `string`                                          | ❌          | `"default"` | Nome da configuração para múltiplas instâncias    |
-| `LoadingComponent`             | `FC<{ opened: boolean }>`                         | ❌          | -           | Componente customizado para loading               |
-| `AuthenticatingErrorComponent` | `FC<{ error: Error \| null; retry: () => void }>` | ❌          | -           | Componente customizado para erros de autenticação |
-| `SessionLostComponent`         | `FC<{ retry: () => void }>`                       | ❌          | -           | Componente customizado para sessão perdida        |
+| Prop                           | Tipo                                                               | Obrigatório | Padrão | Descrição                                         |
+| ------------------------------ | ------------------------------------------------------------------ | ----------- | ------ | ------------------------------------------------- |
+| `children`                     | `ReactNode`                                                        | ✅          | -      | Componentes filhos                                |
+| `config`                       | `KeycloakConfig`                                                   | ✅          | -      | Configurações do Keycloak                         |
+| `logging`                      | `boolean`                                                          | ❌          | -      | Habilita logs de debug                            |
+| `LoadingComponent`             | `FC<{ opened: boolean }>`                                          | ❌          | -      | Componente customizado para loading               |
+| `AuthenticatingErrorComponent` | `FC<{ error: Error \| KeycloakError \| null; retry: () => void }>` | ❌          | -      | Componente customizado para erros de autenticação |
+| `SessionLostComponent`         | `FC<{ retry: () => void }>`                                        | ❌          | -      | Componente customizado para sessão perdida        |
 
 **Tipo `KeycloakConfig`:**
 
@@ -77,9 +79,27 @@ interface KeycloakConfig {
   url: string; // URL do servidor Keycloak
   realm: string; // Nome do realm
   clientId: string; // ID do client
-  redirectUri?: string; // URI de redirecionamento após login
+  wellKnownUrlPrefix?: string; // URL customizada para .well-known/openid-configuration
+  redirectUri: string; // URI de redirecionamento após login
   tokenRefreshInterval?: number; // Intervalo de refresh do token em ms (padrão: 10000)
 }
+```
+
+**Tipo `KeycloakUser`:**
+
+```typescript
+type UserRoles =
+  | { role?: string[] }
+  | { roles?: string[] }
+  | { relation?: string[] }
+  | { groups?: string[] };
+
+type KeycloakUser = {
+  name: string;
+  family_name: string;
+  given_name: string;
+  preferred_username: string;
+} & UserRoles;
 ```
 
 ### `KeycloakSecure`
@@ -94,35 +114,38 @@ Componente que protege rotas, exigindo autenticação.
 
 ## 🪝 Hooks
 
-### `useKeycloak(name?)`
+### `useKeycloak()`
 
 Hook principal para acessar funcionalidades de autenticação.
 
 ```typescript
-const { login, logout, loading, isAuthenticated } = useKeycloak();
+const { login, logout, isLoading, isAuthenticated, error, sessionLost } =
+  useKeycloak();
 ```
 
 **Retorno:**
 
 - `login: (redirectUri?: string) => Promise<void>` - Função para fazer login
-- `logout: (redirectUri?: string) => Promise<void>` - Função para fazer logout
-- `loading: boolean` - Estado de carregamento
+- `logout: (redirectUri: string) => Promise<void>` - Função para fazer logout
+- `isLoading: boolean` - Estado de carregamento
 - `isAuthenticated: boolean` - Estado de autenticação
+- `error: Error | KeycloakError | null` - Erro de autenticação, se houver
+- `sessionLost: boolean` - Indica se a sessão foi perdida
 
-### `useKeycloakUser(name?)`
+### `useKeycloakUser()`
 
 Hook para acessar informações do usuário autenticado.
 
 ```typescript
-const { user, loading } = useKeycloakUser();
+const { user, isLoading } = useKeycloakUser();
 ```
 
 **Retorno:**
 
-- `user: KeycloakProfile | null` - Perfil do usuário
-- `loading: boolean` - Estado de carregamento
+- `user: KeycloakUser | null` - Perfil do usuário
+- `isLoading: boolean` - Estado de carregamento
 
-### `useKeycloakToken(name?)`
+### `useKeycloakToken()`
 
 Hook para acessar tokens de autenticação.
 
@@ -151,7 +174,7 @@ const { accessToken, idToken } = useKeycloakToken();
 
 6. **Redirecionamento Inteligente**: Após o login, o usuário é redirecionado para a página que estava tentando acessar
 
-### Múltiplas Configurações
+<!-- ### Múltiplas Configurações
 
 Você pode ter múltiplas instâncias do Keycloak usando o parâmetro `configurationName`:
 
@@ -170,7 +193,7 @@ E nos hooks:
 ```typescript
 const { login } = useKeycloak("app1");
 const { user } = useKeycloakUser("app2");
-```
+``` -->
 
 ## 📚 Documentação Adicional
 

@@ -1,5 +1,5 @@
-import { KeycloakError, KeycloakUserInfo } from "keycloak-js";
-import { KeycloakContextValue } from "../types";
+import { KeycloakError } from "keycloak-js";
+import { KeycloakContextValue, KeycloakUser } from "../types";
 
 type GenericAction<T extends string, P = undefined> = { type: T; payload: P };
 
@@ -11,7 +11,7 @@ export type KeycloakAction =
   | GenericAction<"SET_LOADING", boolean>
   | GenericAction<"SET_ERROR", Error | KeycloakError | null>
   | GenericAction<"SET_SESSION_LOST", boolean>
-  | GenericAction<"SET_USER_INFO", KeycloakUserInfo | null>;
+  | GenericAction<"SET_USER_INFO", KeycloakUser | null>;
 
 export const initialKeycloakContextValue: KeycloakContextValue = {
   error: null,

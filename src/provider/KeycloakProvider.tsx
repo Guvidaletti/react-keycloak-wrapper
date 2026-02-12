@@ -6,25 +6,23 @@ import React, {
   useLayoutEffect,
   useReducer,
 } from "react";
-import { KeycloakConfig } from "../types";
+import Logger from "../components/Logger";
+import { KeycloakConfig, KeycloakUser } from "../types";
 import { KeycloakContext } from "./keycloak-context";
 import {
   initialKeycloakContextValue,
   keycloakReducer,
 } from "./keycloak-reducer";
-import Logger from "../components/Logger";
 
 interface Props {
   logging?: boolean;
   children: ReactNode;
   config: KeycloakConfig;
-  // configurationName?: string;
   LoadingComponent?: FC<{ opened: boolean }>;
   AuthenticatingErrorComponent?: FC<{
     error: Error | KeycloakError | null;
-    retry: () => void;
   }>;
-  SessionLostComponent?: FC<{ retry: () => void }>;
+  SessionLostComponent?: FC;
 }
 
 let keycloak: Keycloak | undefined;
@@ -50,6 +48,7 @@ export const KeycloakProvider: React.FC<Props> = ({
         url: config.url,
         realm: config.realm,
         clientId: config.clientId,
+        oidcProvider: config.wellKnownUrlPrefix,
       });
     }
 
@@ -59,7 +58,14 @@ export const KeycloakProvider: React.FC<Props> = ({
           onLoad: "check-sso",
           checkLoginIframe: false,
         })
-        .then(() => {
+        .catch((error) => {
+          logger.log("Failed to initialize Keycloak", { error });
+          dispatch({
+            type: "SET_ERROR",
+            payload: error || null,
+          });
+        })
+        .finally(() => {
           dispatch({
             type: "SET_LOADING",
             payload: false,
@@ -93,7 +99,7 @@ export const KeycloakProvider: React.FC<Props> = ({
       keycloak?.loadUserInfo().then((userInfo) => {
         dispatch({
           type: "SET_USER_INFO",
-          payload: userInfo,
+          payload: userInfo as unknown as KeycloakUser,
         });
       });
 
@@ -131,7 +137,13 @@ export const KeycloakProvider: React.FC<Props> = ({
         },
       });
     };
-  }, [config.clientId, config.realm, config.tokenRefreshInterval, config.url]);
+  }, [
+    config.clientId,
+    config.realm,
+    config.tokenRefreshInterval,
+    config.url,
+    config.wellKnownUrlPrefix,
+  ]);
 
   useLayoutEffect(() => {
     initiateKeycloak();
@@ -200,20 +212,9 @@ export const KeycloakProvider: React.FC<Props> = ({
 
       {LoadingComponent && <LoadingComponent opened={state?.isLoading} />}
       {AuthenticatingErrorComponent && state?.error && (
-        <AuthenticatingErrorComponent
-          error={state?.error}
-          retry={() => {
-            console.log("TODO: Implement retry logic");
-          }}
-        />
+        <AuthenticatingErrorComponent error={state?.error} />
       )}
-      {SessionLostComponent && state?.sessionLost && (
-        <SessionLostComponent
-          retry={() => {
-            console.log("TODO: Implement retry logic");
-          }}
-        />
-      )}
+      {SessionLostComponent && state?.sessionLost && <SessionLostComponent />}
     </KeycloakContext.Provider>
   );
 };

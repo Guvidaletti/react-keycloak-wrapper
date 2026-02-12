@@ -1,12 +1,8 @@
 import { useContext } from "react";
 import { KeycloakContext } from "../provider/keycloak-context";
 
-export function useKeycloak(name = "default") {
+export function useKeycloak() {
   const ctx = useContext(KeycloakContext);
-
-  if (!ctx) {
-    throw new Error(`Missing config ${name}`);
-  }
 
   return {
     login: ctx.login,

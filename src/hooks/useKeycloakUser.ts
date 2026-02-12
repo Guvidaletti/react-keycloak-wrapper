@@ -1,8 +1,8 @@
 import { useContext } from "react";
 import { KeycloakContext } from "../provider/keycloak-context";
-import { KeycloakUserInfo } from "keycloak-js";
+import { KeycloakUser } from "../types";
 
-export function useKeycloakUser<UserInfo = KeycloakUserInfo>() {
+export function useKeycloakUser<UserInfo = KeycloakUser>() {
   const ctx = useContext(KeycloakContext);
 
   return {
