@@ -65,12 +65,6 @@ export const KeycloakProvider: React.FC<Props> = ({
             type: "SET_ERROR",
             payload: error || null,
           });
-        })
-        .finally(() => {
-          dispatch({
-            type: "SET_LOADING",
-            payload: false,
-          });
         });
     }
 
@@ -114,18 +108,23 @@ export const KeycloakProvider: React.FC<Props> = ({
           });
         });
 
-      setInterval(() => {
-        keycloak?.updateToken(20).then((refreshed) => {
-          if (!refreshed) {
-            logger.log(
-              "Token is still valid, no need to refresh",
-              new Date(
-                (keycloak?.tokenParsed?.exp ?? 0) * 1000,
-              ).toLocaleTimeString(),
-            );
-          }
-        });
-      }, config.tokenRefreshInterval ?? 10000);
+      setInterval(
+        () => {
+          keycloak
+            ?.updateToken(config.refreshSecondsBeforeTokenExpires ?? 120)
+            .then((refreshed) => {
+              if (!refreshed) {
+                logger.log(
+                  "Token is still valid, no need to refresh",
+                  new Date(
+                    (keycloak?.tokenParsed?.exp ?? 0) * 1000,
+                  ).toLocaleTimeString(),
+                );
+              }
+            });
+        },
+        (config.tokenRefreshIntervalInSeconds ?? 10) * 1000,
+      );
     };
 
     keycloak.onAuthLogout = () => {
@@ -145,6 +144,15 @@ export const KeycloakProvider: React.FC<Props> = ({
       });
     };
 
+    keycloak.onAuthRefreshError = () => {
+      logger.log("Token refresh error");
+
+      dispatch({
+        type: "SET_ERROR",
+        payload: new Error("Token refresh error") || null,
+      });
+    };
+
     keycloak.onAuthRefreshSuccess = () => {
       logger.log("Token refresh successful", keycloak?.token);
 
@@ -160,8 +168,9 @@ export const KeycloakProvider: React.FC<Props> = ({
   }, [
     config.clientId,
     config.realm,
+    config.refreshSecondsBeforeTokenExpires,
     config.scope,
-    config.tokenRefreshInterval,
+    config.tokenRefreshIntervalInSeconds,
     config.url,
     config.wellKnownUrlPrefix,
   ]);
@@ -218,13 +227,18 @@ export const KeycloakProvider: React.FC<Props> = ({
     [config.redirectUri],
   );
 
-  const handleLogout = useCallback(
-    (redirectUri: string) =>
+  const handleLogout = useCallback((redirectUriAfterLogout: string) => {
+    dispatch({
+      type: "SET_LOADING",
+      payload: true,
+    });
+
+    return (
       keycloak?.logout({
-        redirectUri: redirectUri,
-      }) ?? Promise.reject(),
-    [],
-  );
+        redirectUri: redirectUriAfterLogout,
+      }) ?? Promise.reject()
+    );
+  }, []);
 
   const shouldRenderChildren =
     !state.isLoading && !state.error && !state.sessionLost;

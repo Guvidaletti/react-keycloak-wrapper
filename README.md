@@ -63,14 +63,14 @@ Provedor principal que gerencia o estado de autenticação do Keycloak.
 
 **Props:**
 
-| Prop                           | Tipo                                                               | Obrigatório | Padrão | Descrição                                         |
-| ------------------------------ | ------------------------------------------------------------------ | ----------- | ------ | ------------------------------------------------- |
-| `children`                     | `ReactNode`                                                        | ✅          | -      | Componentes filhos                                |
-| `config`                       | `KeycloakConfig`                                                   | ✅          | -      | Configurações do Keycloak                         |
-| `logging`                      | `boolean`                                                          | ❌          | -      | Habilita logs de debug                            |
-| `LoadingComponent`             | `FC<{ opened: boolean }>`                                          | ❌          | -      | Componente customizado para loading               |
-| `AuthenticatingErrorComponent` | `FC<{ error: Error \ \| null; retry: () => void }>` | ❌          | -      | Componente customizado para erros de autenticação |
-| `SessionLostComponent`         | `FC<{ retry: () => void }>`                                        | ❌          | -      | Componente customizado para sessão perdida        |
+| Prop                           | Tipo                          | Obrigatório | Padrão  | Descrição                                         |
+| ------------------------------ | ----------------------------- | ----------- | ------- | ------------------------------------------------- |
+| `children`                     | `ReactNode`                   | ✅          | -       | Componentes filhos                                |
+| `config`                       | `KeycloakConfig`              | ✅          | -       | Configurações do Keycloak                         |
+| `logging`                      | `boolean`                     | ❌          | `false` | Habilita logs de debug                            |
+| `LoadingComponent`             | `FC<{ opened: boolean }>`     | ❌          | -       | Componente customizado para loading               |
+| `AuthenticatingErrorComponent` | `FC<{ error: Error \| null }>` | ❌          | -       | Componente customizado para erros de autenticação |
+| `SessionLostComponent`         | `FC`                          | ❌          | -       | Componente customizado para sessão perdida        |
 
 **Tipo `KeycloakConfig`:**
 
@@ -79,27 +79,27 @@ interface KeycloakConfig {
   url: string; // URL do servidor Keycloak
   realm: string; // Nome do realm
   clientId: string; // ID do client
+  scope?: string; // Escopo adicional para o login
   wellKnownUrlPrefix?: string; // URL customizada para .well-known/openid-configuration
-  redirectUri: string; // URI de redirecionamento após login
-  tokenRefreshInterval?: number; // Intervalo de refresh do token em ms (padrão: 10000)
+  refreshSecondsBeforeTokenExpires?: number; // Segundos antes de expirar para tentar refresh (padrão: 120)
+  redirectUri: string; // URI de redirecionamento apos login
+  tokenRefreshIntervalInSeconds?: number; // Intervalo entre checagens de refresh (padrão: 10)
 }
 ```
 
 **Tipo `KeycloakUser`:**
 
 ```typescript
-type UserRoles =
-  | { role?: string[] }
-  | { roles?: string[] }
-  | { relation?: string[] }
-  | { groups?: string[] };
-
 type KeycloakUser = {
   name: string;
   family_name: string;
   given_name: string;
   preferred_username: string;
-} & UserRoles;
+  role?: string[];
+  roles?: string[];
+  relation?: string[];
+  groups?: string[];
+};
 ```
 
 ### `KeycloakSecure`

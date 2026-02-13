@@ -8,8 +8,26 @@ export interface KeycloakConfig {
    * @default {url}/realms/{realm}
    */
   wellKnownUrlPrefix?: string;
+  /**
+   * Number of seconds before the token expires to attempt automatic token refresh.
+   * @default 120 (2 minutes)
+   */
+  refreshSecondsBeforeTokenExpires?: number;
+  /**
+   * URI to redirect to after login. We recommend using:
+   *
+   * window.location.origin + import.meta.env.BASE_URL + "/authentication"
+   *
+   * Dont forget to add this route to your app and show a Loader.
+   */
   redirectUri: string;
-  tokenRefreshInterval?: number;
+  /**
+   * Seconds between each check to refresh the token.
+   * This is independent of the `refreshSecondsBeforeTokenExpires`
+   * and only controls how often the library checks if the token needs to be refreshed.
+   * @default 10
+   */
+  tokenRefreshIntervalInSeconds?: number;
 }
 
 export type KeycloakUser = {
