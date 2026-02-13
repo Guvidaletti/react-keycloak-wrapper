@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render } from "@testing-library/react";
+import { render, waitFor } from "@testing-library/react";
 import React from "react";
 import { KeycloakProvider } from "../src/provider/KeycloakProvider";
 
@@ -28,7 +28,6 @@ describe("KeycloakProvider", () => {
   it("renders children", async () => {
     const { findByText } = render(
       <KeycloakProvider
-        configurationName="test"
         config={{
           url: "http://localhost",
           realm: "test",
@@ -40,6 +39,8 @@ describe("KeycloakProvider", () => {
       </KeycloakProvider>,
     );
 
-    expect(await findByText("App")).toBeTruthy();
+    await waitFor(() => {
+      expect(findByText("App")).toBeTruthy();
+    });
   });
 });
