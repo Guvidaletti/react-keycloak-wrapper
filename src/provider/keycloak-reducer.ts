@@ -44,7 +44,14 @@ export function keycloakReducer(
     case "SET_ERROR":
       return {
         ...state,
-        error: action.payload,
+        error:
+          !action.payload || action.payload instanceof Error
+            ? action.payload
+            : new Error(
+                String(
+                  action.payload.error || action.payload.error_description,
+                ),
+              ),
       };
     case "SET_SESSION_LOST":
       return {

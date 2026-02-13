@@ -69,7 +69,7 @@ Provedor principal que gerencia o estado de autenticação do Keycloak.
 | `config`                       | `KeycloakConfig`                                                   | ✅          | -      | Configurações do Keycloak                         |
 | `logging`                      | `boolean`                                                          | ❌          | -      | Habilita logs de debug                            |
 | `LoadingComponent`             | `FC<{ opened: boolean }>`                                          | ❌          | -      | Componente customizado para loading               |
-| `AuthenticatingErrorComponent` | `FC<{ error: Error \| KeycloakError \| null; retry: () => void }>` | ❌          | -      | Componente customizado para erros de autenticação |
+| `AuthenticatingErrorComponent` | `FC<{ error: Error \ \| null; retry: () => void }>` | ❌          | -      | Componente customizado para erros de autenticação |
 | `SessionLostComponent`         | `FC<{ retry: () => void }>`                                        | ❌          | -      | Componente customizado para sessão perdida        |
 
 **Tipo `KeycloakConfig`:**
@@ -129,7 +129,7 @@ const { login, logout, isLoading, isAuthenticated, error, sessionLost } =
 - `logout: (redirectUri: string) => Promise<void>` - Função para fazer logout
 - `isLoading: boolean` - Estado de carregamento
 - `isAuthenticated: boolean` - Estado de autenticação
-- `error: Error | KeycloakError | null` - Erro de autenticação, se houver
+- `error: Error | null` - Erro de autenticação, se houver
 - `sessionLost: boolean` - Indica se a sessão foi perdida
 
 ### `useKeycloakUser()`
@@ -173,27 +173,6 @@ const { accessToken, idToken } = useKeycloakToken();
 5. **Gerenciamento de Estado**: O estado de autenticação é gerenciado através de um reducer (keycloak-reducer.ts)
 
 6. **Redirecionamento Inteligente**: Após o login, o usuário é redirecionado para a página que estava tentando acessar
-
-<!-- ### Múltiplas Configurações
-
-Você pode ter múltiplas instâncias do Keycloak usando o parâmetro `configurationName`:
-
-```tsx
-<KeycloakProvider config={config1} configurationName="app1">
-  {/* ... */}
-</KeycloakProvider>
-
-<KeycloakProvider config={config2} configurationName="app2">
-  {/* ... */}
-</KeycloakProvider>
-```
-
-E nos hooks:
-
-```typescript
-const { login } = useKeycloak("app1");
-const { user } = useKeycloakUser("app2");
-``` -->
 
 ## 📚 Documentação Adicional
 

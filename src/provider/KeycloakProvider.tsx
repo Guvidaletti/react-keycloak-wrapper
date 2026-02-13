@@ -1,4 +1,4 @@
-import Keycloak, { KeycloakError } from "keycloak-js";
+import Keycloak from "keycloak-js";
 import React, {
   FC,
   ReactNode,
@@ -20,7 +20,7 @@ interface Props {
   config: KeycloakConfig;
   LoadingComponent?: FC<{ opened: boolean }>;
   AuthenticatingErrorComponent?: FC<{
-    error: Error | KeycloakError | null;
+    error: Error | null;
   }>;
   SessionLostComponent?: FC;
 }
@@ -57,6 +57,7 @@ export const KeycloakProvider: React.FC<Props> = ({
         .init({
           onLoad: "check-sso",
           checkLoginIframe: false,
+          scope: config.scope,
         })
         .catch((error) => {
           logger.log("Failed to initialize Keycloak", { error });
@@ -76,7 +77,7 @@ export const KeycloakProvider: React.FC<Props> = ({
     keycloak.onReady = (authenticated) => {
       logger.log("Keycloak is ready", { authenticated });
 
-      if (authenticated) {
+      if (!authenticated) {
         dispatch({
           type: "SET_LOADING",
           payload: false,
@@ -96,15 +97,34 @@ export const KeycloakProvider: React.FC<Props> = ({
         },
       });
 
-      keycloak?.loadUserInfo().then((userInfo) => {
-        dispatch({
-          type: "SET_USER_INFO",
-          payload: userInfo as unknown as KeycloakUser,
+      logger.log("Loading user info");
+      keycloak
+        ?.loadUserInfo()
+        .then((userInfo) => {
+          logger.log("User info loaded", { userInfo });
+          dispatch({
+            type: "SET_USER_INFO",
+            payload: userInfo as unknown as KeycloakUser,
+          });
+        })
+        .finally(() => {
+          dispatch({
+            type: "SET_LOADING",
+            payload: false,
+          });
         });
-      });
 
       setInterval(() => {
-        keycloak?.updateToken(20);
+        keycloak?.updateToken(20).then((refreshed) => {
+          if (!refreshed) {
+            logger.log(
+              "Token is still valid, no need to refresh",
+              new Date(
+                (keycloak?.tokenParsed?.exp ?? 0) * 1000,
+              ).toLocaleTimeString(),
+            );
+          }
+        });
       }, config.tokenRefreshInterval ?? 10000);
     };
 
@@ -140,6 +160,7 @@ export const KeycloakProvider: React.FC<Props> = ({
   }, [
     config.clientId,
     config.realm,
+    config.scope,
     config.tokenRefreshInterval,
     config.url,
     config.wellKnownUrlPrefix,
@@ -182,10 +203,18 @@ export const KeycloakProvider: React.FC<Props> = ({
   }, [config.redirectUri, state.isAuthenticated, state.isLoading]);
 
   const handleLogin = useCallback(
-    (redirectUri?: string) =>
-      keycloak?.login({
-        redirectUri: redirectUri ?? config.redirectUri,
-      }) ?? Promise.reject(),
+    (redirectUri?: string) => {
+      dispatch({
+        type: "SET_LOADING",
+        payload: true,
+      });
+
+      return (
+        keycloak?.login({
+          redirectUri: redirectUri ?? config.redirectUri,
+        }) ?? Promise.reject()
+      );
+    },
     [config.redirectUri],
   );
 
