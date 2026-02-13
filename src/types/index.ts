@@ -47,6 +47,7 @@ export interface KeycloakContextValue {
   isAuthenticated: boolean;
   userInfo: KeycloakUser | null;
   accessToken?: string;
+  refreshToken?: string;
   idToken?: string;
   error: Error | null;
   sessionLost: boolean;

@@ -7,6 +7,7 @@ import React, {
   useReducer,
 } from "react";
 import Logger from "../components/Logger";
+import ConfigurationStore from "../store/ConfigurationStore";
 import { KeycloakConfig, KeycloakUser } from "../types";
 import { KeycloakContext } from "./keycloak-context";
 import {
@@ -15,7 +16,8 @@ import {
 } from "./keycloak-reducer";
 
 interface Props {
-  logging?: boolean;
+  configurationName?: string;
+  logging?: "wrapper" | "keycloak" | "both";
   children: ReactNode;
   config: KeycloakConfig;
   LoadingComponent?: FC<{ opened: boolean }>;
@@ -28,6 +30,7 @@ interface Props {
 let keycloak: Keycloak | undefined;
 const logger = new Logger(false);
 export const KeycloakProvider: React.FC<Props> = ({
+  configurationName = "default",
   logging,
   children,
   config,
@@ -35,7 +38,7 @@ export const KeycloakProvider: React.FC<Props> = ({
   AuthenticatingErrorComponent,
   SessionLostComponent,
 }) => {
-  logger.setEnabled(logging ?? false);
+  logger.setEnabled(["wrapper", "both"].includes(logging ?? ""));
 
   const [state, dispatch] = useReducer(
     keycloakReducer,
@@ -58,6 +61,11 @@ export const KeycloakProvider: React.FC<Props> = ({
           onLoad: "check-sso",
           checkLoginIframe: false,
           scope: config.scope,
+          enableLogging: ["keycloak", "both"].includes(logging ?? ""),
+          ...ConfigurationStore.getConfiguration(
+            configurationName,
+            config.realm,
+          ),
         })
         .catch((error) => {
           logger.log("Failed to initialize Keycloak", { error });
@@ -82,11 +90,18 @@ export const KeycloakProvider: React.FC<Props> = ({
     keycloak.onAuthSuccess = () => {
       logger.log("Authentication successful");
 
+      ConfigurationStore.setConfiguration(configurationName, config.realm, {
+        token: keycloak?.token,
+        refreshToken: keycloak?.refreshToken,
+        idToken: keycloak?.idToken,
+      });
+
       dispatch({
         type: "SET_TOKEN",
         payload: {
           isAuthenticated: true,
           accessToken: keycloak?.token,
+          refreshToken: keycloak?.refreshToken,
           idToken: keycloak?.idToken,
         },
       });
@@ -156,11 +171,18 @@ export const KeycloakProvider: React.FC<Props> = ({
     keycloak.onAuthRefreshSuccess = () => {
       logger.log("Token refresh successful", keycloak?.token);
 
+      ConfigurationStore.setConfiguration(configurationName, config.realm, {
+        token: keycloak?.token,
+        refreshToken: keycloak?.refreshToken,
+        idToken: keycloak?.idToken,
+      });
+
       dispatch({
         type: "SET_TOKEN",
         payload: {
           isAuthenticated: true,
           accessToken: keycloak?.token,
+          refreshToken: keycloak?.refreshToken,
           idToken: keycloak?.idToken,
         },
       });
@@ -173,6 +195,8 @@ export const KeycloakProvider: React.FC<Props> = ({
     config.tokenRefreshIntervalInSeconds,
     config.url,
     config.wellKnownUrlPrefix,
+    configurationName,
+    logging,
   ]);
 
   useLayoutEffect(() => {
@@ -180,12 +204,6 @@ export const KeycloakProvider: React.FC<Props> = ({
   }, [initiateKeycloak]);
 
   useLayoutEffect(() => {
-    logger.log("Checando redirecionamento após autenticação", {
-      isAuthenticated: state.isAuthenticated,
-      isLoading: state.isLoading,
-      redirectUri: config.redirectUri,
-    });
-
     if (
       !state.isLoading &&
       state.isAuthenticated &&
@@ -227,18 +245,34 @@ export const KeycloakProvider: React.FC<Props> = ({
     [config.redirectUri],
   );
 
-  const handleLogout = useCallback((redirectUriAfterLogout: string) => {
-    dispatch({
-      type: "SET_LOADING",
-      payload: true,
-    });
+  const handleLogout = useCallback(
+    (redirectUriAfterLogout: string) => {
+      dispatch({
+        type: "SET_LOADING",
+        payload: true,
+      });
 
-    return (
-      keycloak?.logout({
-        redirectUri: redirectUriAfterLogout,
-      }) ?? Promise.reject()
-    );
-  }, []);
+      ConfigurationStore.clearConfiguration(configurationName, config.realm);
+
+      return (
+        keycloak?.logout({
+          redirectUri: redirectUriAfterLogout,
+        }) ?? Promise.reject()
+      );
+    },
+    [config.realm, configurationName],
+  );
+
+  // carregando > erro > sessão perdida > children
+
+  const shouldRenderError =
+    state?.error && !state.isLoading && AuthenticatingErrorComponent;
+
+  const shouldRenderSessionLost =
+    state.sessionLost &&
+    !state.isLoading &&
+    !state?.error &&
+    SessionLostComponent;
 
   const shouldRenderChildren =
     !state.isLoading && !state.error && !state.sessionLost;
@@ -253,11 +287,13 @@ export const KeycloakProvider: React.FC<Props> = ({
     >
       {shouldRenderChildren && children}
 
-      {LoadingComponent && <LoadingComponent opened={state?.isLoading} />}
-      {AuthenticatingErrorComponent && state?.error && (
+      {shouldRenderSessionLost && <SessionLostComponent />}
+
+      {shouldRenderError && (
         <AuthenticatingErrorComponent error={state?.error} />
       )}
-      {SessionLostComponent && state?.sessionLost && <SessionLostComponent />}
+
+      {LoadingComponent && <LoadingComponent opened={state?.isLoading} />}
     </KeycloakContext.Provider>
   );
 };

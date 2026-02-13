@@ -6,7 +6,12 @@ type GenericAction<T extends string, P = undefined> = { type: T; payload: P };
 export type KeycloakAction =
   | GenericAction<
       "SET_TOKEN",
-      { accessToken?: string; idToken?: string; isAuthenticated?: boolean }
+      {
+        accessToken?: string;
+        idToken?: string;
+        refreshToken?: string;
+        isAuthenticated?: boolean;
+      }
     >
   | GenericAction<"SET_LOADING", boolean>
   | GenericAction<"SET_ERROR", Error | KeycloakError | null>
@@ -32,6 +37,7 @@ export function keycloakReducer(
       return {
         ...state,
         accessToken: action.payload.accessToken,
+        refreshToken: action.payload.refreshToken,
         idToken: action.payload.idToken,
         isAuthenticated:
           action.payload.isAuthenticated ?? state.isAuthenticated,

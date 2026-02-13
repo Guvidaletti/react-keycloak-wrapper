@@ -20,5 +20,5 @@ export const KeycloakSecure: React.FC<React.PropsWithChildren> = ({
     return null;
   }
 
-  return <>{children}</>;
+  return children;
 };
