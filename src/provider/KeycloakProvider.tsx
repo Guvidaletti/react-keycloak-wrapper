@@ -73,6 +73,10 @@ export const KeycloakProvider: React.FC<Props> = ({
             type: "SET_ERROR",
             payload: error || null,
           });
+          dispatch({
+            type: "SET_LOADING",
+            payload: false,
+          });
         });
     }
 
