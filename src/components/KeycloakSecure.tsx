@@ -1,17 +1,19 @@
 import React from "react";
 import { useKeycloak } from "../hooks/useKeycloak";
+import { getSessionStoragePrefixCN } from "../utils/constants";
 
 export const KeycloakSecure: React.FC<React.PropsWithChildren> = ({
   children,
 }) => {
-  const { isAuthenticated, login, isLoading } = useKeycloak();
+  const { isAuthenticated, login, isLoading, configurationName } =
+    useKeycloak();
 
   if (isLoading) return null;
 
   if (!isAuthenticated) {
     // Salva a URL atual antes de redirecionar
     sessionStorage.setItem(
-      "keycloak_return_url",
+      getSessionStoragePrefixCN(configurationName, "return_url"),
       window.location.pathname + window.location.search,
     );
 

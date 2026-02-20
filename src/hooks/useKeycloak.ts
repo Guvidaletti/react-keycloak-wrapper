@@ -9,5 +9,6 @@ export function useKeycloak() {
     logout: ctx.logout,
     isLoading: ctx.isLoading,
     isAuthenticated: ctx.isAuthenticated,
+    configurationName: ctx.configurationName,
   };
 }

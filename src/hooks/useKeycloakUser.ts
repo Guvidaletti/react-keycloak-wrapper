@@ -7,6 +7,6 @@ export function useKeycloakUser<UserInfo = KeycloakUser>() {
 
   return {
     user: ctx?.userInfo as UserInfo | null,
-    loading: ctx?.isLoading,
+    isLoading: ctx?.isLoading,
   };
 }

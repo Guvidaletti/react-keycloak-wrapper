@@ -4,6 +4,7 @@ import { KeycloakContextValue, KeycloakUser } from "../types";
 type GenericAction<T extends string, P = undefined> = { type: T; payload: P };
 
 export type KeycloakAction =
+  | GenericAction<"SET_CONFIGURATION_NAME", string>
   | GenericAction<
       "SET_TOKEN",
       {
@@ -26,6 +27,7 @@ export const initialKeycloakContextValue: KeycloakContextValue = {
   login: () => Promise.reject(new Error("Not implemented")),
   logout: () => Promise.reject(new Error("Not implemented")),
   userInfo: null,
+  configurationName: undefined,
 };
 
 export function keycloakReducer(
@@ -33,6 +35,11 @@ export function keycloakReducer(
   action: KeycloakAction,
 ): KeycloakContextValue {
   switch (action.type) {
+    case "SET_CONFIGURATION_NAME":
+      return {
+        ...state,
+        configurationName: action.payload,
+      };
     case "SET_TOKEN":
       return {
         ...state,

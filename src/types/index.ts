@@ -43,6 +43,7 @@ export type KeycloakUser = {
 };
 
 export interface KeycloakContextValue {
+  configurationName?: string;
   isLoading: boolean;
   isAuthenticated: boolean;
   userInfo: KeycloakUser | null;
