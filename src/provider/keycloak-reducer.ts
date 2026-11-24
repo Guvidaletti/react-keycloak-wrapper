@@ -1,5 +1,6 @@
 import { KeycloakError } from "keycloak-js";
 import { KeycloakContextValue, KeycloakUser } from "../types";
+import { parseJwtPayload } from "../utils/jwt";
 
 type GenericAction<T extends string, P = undefined> = { type: T; payload: P };
 
@@ -24,6 +25,7 @@ export const initialKeycloakContextValue: KeycloakContextValue = {
   isAuthenticated: false,
   isLoading: true,
   sessionLost: false,
+  accessTokenPayload: null,
   login: () => Promise.reject(new Error("Not implemented")),
   logout: () => Promise.reject(new Error("Not implemented")),
   userInfo: null,
@@ -44,6 +46,7 @@ export function keycloakReducer(
       return {
         ...state,
         accessToken: action.payload.accessToken,
+        accessTokenPayload: parseJwtPayload(action.payload.accessToken),
         refreshToken: action.payload.refreshToken,
         idToken: action.payload.idToken,
         isAuthenticated:

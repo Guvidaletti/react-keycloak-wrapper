@@ -1,9 +1,19 @@
 export interface KeycloakConfig {
+  /**
+   * URL do servidor Keycloak, sem a barra no final.
+   * Exemplo: https://keycloak.com/auth
+   */
   url: string;
+  /**
+   * Nome do realm configurado no Keycloak
+   */
   realm: string;
+  /**
+   * Client ID configurado no Keycloak
+   */
   clientId: string;
   scope?: string;
-  /** {domain}/realms/{realm}/
+  /** {domain}/realms/{realm}
    * without the suffix ".well-known/openid-configuration"
    * @default {url}/realms/{realm}
    */
@@ -48,6 +58,7 @@ export interface KeycloakContextValue {
   isAuthenticated: boolean;
   userInfo: KeycloakUser | null;
   accessToken?: string;
+  accessTokenPayload: KeycloakUser | null;
   refreshToken?: string;
   idToken?: string;
   error: Error | null;

@@ -3,7 +3,7 @@
   "version": "0.0.3",
   "description": "React Keycloak provider inspired by OIDC providers",
   "license": "MIT",
-  "main": "./dist/index.cjs",
+  "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
   "files": [

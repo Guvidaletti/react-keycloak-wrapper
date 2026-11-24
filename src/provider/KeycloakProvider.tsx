@@ -22,11 +22,20 @@ interface Props {
   logging?: "wrapper" | "keycloak" | "both";
   children: ReactNode;
   config: KeycloakConfig;
+  /**
+   * Componente que será exibido enquanto o Keycloak estiver carregando.
+   * Utilizar a prop `opened` para controlar a exibição do componente.
+   */
   LoadingComponent?: FC<{ opened: boolean }>;
   AuthenticatingErrorComponent?: FC<{
     error: Error | null;
   }>;
   SessionLostComponent?: FC;
+  /**
+   * informa se o KeycloakProvider deve carregar as informações do usuário pelo endpoint
+   * do userinfo informado
+   */
+  loadUserInfo?: boolean;
 }
 
 const logger = new Logger(false);
@@ -37,6 +46,7 @@ export const KeycloakProvider: React.FC<Props> = ({
   config,
   LoadingComponent,
   AuthenticatingErrorComponent,
+  loadUserInfo,
   SessionLostComponent,
 }) => {
   logger.setEnabled(["wrapper", "both"].includes(logging ?? ""));
@@ -82,22 +92,29 @@ export const KeycloakProvider: React.FC<Props> = ({
         },
       });
 
-      logger.log("Loading user info");
-      keycloakRef.current
-        ?.loadUserInfo()
-        .then((userInfo) => {
-          logger.log("User info loaded", { userInfo });
-          dispatch({
-            type: "SET_USER_INFO",
-            payload: userInfo as unknown as KeycloakUser,
+      if (loadUserInfo) {
+        logger.log("Loading user info");
+        keycloakRef.current
+          ?.loadUserInfo()
+          .then((userInfo) => {
+            logger.log("User info loaded", { userInfo });
+            dispatch({
+              type: "SET_USER_INFO",
+              payload: userInfo as unknown as KeycloakUser,
+            });
+          })
+          .finally(() => {
+            dispatch({
+              type: "SET_LOADING",
+              payload: false,
+            });
           });
-        })
-        .finally(() => {
-          dispatch({
-            type: "SET_LOADING",
-            payload: false,
-          });
+      } else {
+        dispatch({
+          type: "SET_LOADING",
+          payload: false,
         });
+      }
 
       timeoutRef.current = setInterval(
         () => {
@@ -145,7 +162,11 @@ export const KeycloakProvider: React.FC<Props> = ({
     };
 
     keycloakRef.current.onAuthRefreshSuccess = () => {
-      logger.log("Token refresh successful", keycloakRef.current?.token);
+      logger.log(
+        "Token refresh successful at",
+        new Date(),
+        keycloakRef.current?.token,
+      );
 
       ConfigurationStore.setConfiguration(configurationName, config.realm, {
         token: keycloakRef.current?.token,
@@ -168,6 +189,7 @@ export const KeycloakProvider: React.FC<Props> = ({
     config.refreshSecondsBeforeTokenExpires,
     config.tokenRefreshIntervalInSeconds,
     configurationName,
+    loadUserInfo,
   ]);
 
   const initiateKeycloak = useCallback(() => {
@@ -261,7 +283,7 @@ export const KeycloakProvider: React.FC<Props> = ({
           "",
           window.location.origin + returnUrl,
         );
-        
+
         // Dispara um evento para que o ReactRouter detecte
         window.dispatchEvent(new PopStateEvent("popstate"));
         sessionStorage.removeItem(
